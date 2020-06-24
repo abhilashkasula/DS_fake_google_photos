@@ -16,6 +16,7 @@ const informWorkerFree = ({id, tags}) => {
   const options = getServerOptions();
   options.path = `/completed-job/${id}`;
   const req = http.request(options, () => {});
+  req.write(JSON.stringify(tags));
   req.end();
 };
 
@@ -30,7 +31,8 @@ app.post('/process/:id/:count/:width/:height/:tags', (req, res) => {
     .then((tags) => {
       console.log(tags);
       return {id: req.params.id, tags};
-    }).then(informWorkerFree);
+    })
+    .then(informWorkerFree);
 });
 
 app.listen(5000, () => console.log('listening at 5000'));

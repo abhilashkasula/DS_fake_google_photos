@@ -1,16 +1,18 @@
 const express = require('express');
 const http = require('http');
+const ImageSets = require('./imageSets');
 
 const app = express();
-let id = 0;
 let isWorkerFree = true;
 const jobs = [];
 
+const imageSets = new ImageSets();
+
 setInterval(() => {
-  if(isWorkerFree && jobs.length) {
+  if (isWorkerFree && jobs.length) {
     const job = jobs.shift();
     console.log('Scheduling job on worker: ', job);
-    delegateToWorker(job.id, job.params);
+    delegateToWorker(job);
   }
 }, 1000);
 
@@ -22,10 +24,10 @@ const getWorkerOptions = () => {
   };
 };
 
-const delegateToWorker = (id, {count, width, height, tags}) => {
+const delegateToWorker = ({id, count, width, height, tags}) => {
   const options = getWorkerOptions();
-  options.path = `/process/${id}/${count}/${width}/${height}/${tags}`
-  const req = http.request(options, res => {
+  options.path = `/process/${id}/${count}/${width}/${height}/${tags}`;
+  const req = http.request(options, (res) => {
     console.log('Got from worker', res.statusCode);
   });
   req.end();
@@ -38,15 +40,27 @@ app.use((req, res, next) => {
 });
 
 app.post('/process/:name/:count/:width/:height/:tags', (req, res) => {
-  res.send(`id=${id}`);
+  const job = imageSets.addImageSet(req.params);
+  res.send(`id=${job.id}`);
   res.end();
-  jobs.push({id, params: req.params});
-  id++;
+  jobs.push(job);
 });
 
 app.post('/completed-job/:id', (req, res) => {
-  isWorkerFree = true;
-  res.end();
+  let data = '';
+  req.on('data', (chunk) => (data += chunk));
+  req.on('end', () => {
+    const tags = JSON.parse(data);
+    console.log(tags);
+    imageSets.completedProcessing(req.params.id, tags);
+    isWorkerFree = true;
+    res.end();
+  });
+});
+
+app.get('/status/:id', (req, res) => {
+  const imageSet = imageSets.get(req.params.id);
+  res.json(imageSet);
 });
 
 app.listen(8000, () => console.log('listening at 8000'));
