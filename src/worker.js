@@ -25,14 +25,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.post('/process/:id/:count/:width/:height/:tags', (req, res) => {
+app.post('/process', (req, res) => {
+  let data = '';
+  req.on('data', chunk => data += chunk);
+  req.on('end', () => {
+    const params = JSON.parse(data);
+    processImage(params)
+      .then((tags) => {
+        console.log(tags);
+        return {id: params.id, tags};
+      })
+      .then(informWorkerFree);
+  });
   res.end();
-  processImage(req.params)
-    .then((tags) => {
-      console.log(tags);
-      return {id: req.params.id, tags};
-    })
-    .then(informWorkerFree);
 });
 
 app.listen(5000, () => console.log('listening at 5000'));
