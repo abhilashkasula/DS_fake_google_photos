@@ -14,7 +14,6 @@ const getWorkerOptions = () => {
 const app = express();
 const imageSets = new ImageSets();
 const scheduler = new Scheduler(getWorkerOptions());
-scheduler.start();
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
