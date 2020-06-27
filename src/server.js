@@ -1,10 +1,11 @@
 const express = require('express');
 const ImageSets = require('./imageSets');
 const Scheduler = require('./scheduler');
+const Agent = require('./agent');
 
-const getWorkerOptions = () => {
+const getAgentOptions = (port) => {
   return {
-    port: 5000,
+    port,
     method: 'post',
     host: 'localhost',
     path: '/process',
@@ -13,7 +14,9 @@ const getWorkerOptions = () => {
 
 const app = express();
 const imageSets = new ImageSets();
-const scheduler = new Scheduler(getWorkerOptions());
+const scheduler = new Scheduler();
+scheduler.addAgent(new Agent(1, getAgentOptions(5000)));
+scheduler.addAgent(new Agent(2, getAgentOptions(5001)));
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -27,14 +30,14 @@ app.post('/process/:name/:count/:width/:height/:tags', (req, res) => {
   scheduler.schedule(job);
 });
 
-app.post('/completed-job/:id', (req, res) => {
+app.post('/completed-job/:agentId/:id', (req, res) => {
   let data = '';
   req.on('data', (chunk) => (data += chunk));
   req.on('end', () => {
     const tags = JSON.parse(data);
     console.log(tags);
     imageSets.completedProcessing(req.params.id, tags);
-    scheduler.setWorkerFree();
+    scheduler.setAgentFree(req.params.agentId);
     res.end();
   });
 });

@@ -12,9 +12,11 @@ const getServerOptions = () => {
   };
 };
 
+let agentId;
+
 const informWorkerFree = ({id, tags}) => {
   const options = getServerOptions();
-  options.path = `/completed-job/${id}`;
+  options.path = `/completed-job/${agentId}/${id}`;
   const req = http.request(options, () => {});
   req.write(JSON.stringify(tags));
   req.end();
@@ -40,4 +42,11 @@ app.post('/process', (req, res) => {
   res.end();
 });
 
-app.listen(5000, () => console.log('listening at 5000'));
+
+const main = (port, id) => {
+  port = port || 5000;
+  agentId = id || 1;
+  app.listen(+port, () => console.log(`listening at ${port}`));
+};
+
+main(+process.argv[2], +process.argv[3]);
