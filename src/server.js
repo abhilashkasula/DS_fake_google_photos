@@ -1,23 +1,11 @@
 const express = require('express');
 const redis = require('redis');
 const imageSets = require('./imageSets');
-const Scheduler = require('./scheduler');
-const Agent = require('./agent');
 
-const getAgentOptions = (port) => {
-  return {
-    port,
-    method: 'post',
-    host: 'localhost',
-    path: '/process',
-  };
-};
+const jobs = [];
 
 const app = express();
 const redisClient = redis.createClient({db: 1});
-const scheduler = new Scheduler();
-scheduler.addAgent(new Agent(1, getAgentOptions(5000)));
-scheduler.addAgent(new Agent(2, getAgentOptions(5001)));
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -28,13 +16,15 @@ app.post('/process/:name/:count/:width/:height/:tags', (req, res) => {
   imageSets.addImageSet(redisClient, req.params).then((job) => {
     res.send(`id=${job.id}`);
     res.end();
-    scheduler.schedule(job);
+    jobs.push(job);
   });
 });
 
-app.post('/completed-job/:agentId', (req, res) => {
-  scheduler.setAgentFree(req.params.agentId);
-  res.end();
+app.get('/request-job', (req, res) => {
+  if(jobs.length) {
+    return res.json(jobs.shift());
+  }
+  res.json({});
 });
 
 app.get('/status/:id', (req, res) => {
