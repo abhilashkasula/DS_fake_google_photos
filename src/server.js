@@ -32,16 +32,9 @@ app.post('/process/:name/:count/:width/:height/:tags', (req, res) => {
   });
 });
 
-app.post('/completed-job/:agentId/:id', (req, res) => {
-  let data = '';
-  req.on('data', (chunk) => (data += chunk));
-  req.on('end', () => {
-    const tags = JSON.parse(data);
-    console.log(tags);
-    imageSets.completedProcessing(redisClient, req.params.id, tags);
-    scheduler.setAgentFree(req.params.agentId);
-    res.end();
-  });
+app.post('/completed-job/:agentId', (req, res) => {
+  scheduler.setAgentFree(req.params.agentId);
+  res.end();
 });
 
 app.get('/status/:id', (req, res) => {

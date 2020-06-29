@@ -10,8 +10,11 @@ const createJob = (client, id, imageSet) => {
   return new Promise((resolve, reject) => {
     const status = ['status', 'scheduled'];
     const receivedAt = ['receivedAt', new Date()];
-    client.hmset(`job_${id}`, status.concat(receivedAt), (err, res) => {
-      resolve(Object.assign({id}, imageSet));
+    const imageSetDetails = Object.keys(imageSet).reduce((list, key) => {
+      return list.concat([key, imageSet[key]]);
+    }, status.concat(receivedAt));
+    client.hmset(`job_${id}`, imageSetDetails, (err, res) => {
+      resolve({id});
     });
   });
 };

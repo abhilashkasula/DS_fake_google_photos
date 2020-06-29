@@ -1,6 +1,8 @@
 const express = require('express');
 const http = require('http');
+const redis = require('redis');
 const {processImage} = require('./processImage');
+const imageSets = require('./imageSets');
 
 const app = express();
 
@@ -12,13 +14,14 @@ const getServerOptions = () => {
   };
 };
 
+const redisClient = redis.createClient({db: 1});
+
 let agentId;
 
-const informWorkerFree = ({id, tags}) => {
+const informWorkerFree = () => {
   const options = getServerOptions();
-  options.path = `/completed-job/${agentId}/${id}`;
+  options.path = `/completed-job/${agentId}`;
   const req = http.request(options, () => {});
-  req.write(JSON.stringify(tags));
   req.end();
 };
 
@@ -29,19 +32,19 @@ app.use((req, res, next) => {
 
 app.post('/process', (req, res) => {
   let data = '';
-  req.on('data', chunk => data += chunk);
+  req.on('data', (chunk) => (data += chunk));
   req.on('end', () => {
     const params = JSON.parse(data);
-    processImage(params)
+    imageSets
+      .get(redisClient, params.id)
+      .then(processImage)
       .then((tags) => {
-        console.log(tags);
-        return {id: params.id, tags};
+        imageSets.completedProcessing(redisClient, params.id, tags);
       })
       .then(informWorkerFree);
   });
   res.end();
 });
-
 
 const main = (port, id) => {
   port = port || 5000;
