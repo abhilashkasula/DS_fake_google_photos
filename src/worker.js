@@ -1,49 +1,33 @@
-const http = require('http');
 const redis = require('redis');
 const {processImage} = require('./processImage');
 const imageSets = require('./imageSets');
-
-const getServerOptions = () => {
-  return {
-    port: 8000,
-    host: 'localhost',
-    path: '/request-job',
-  };
-};
 
 const redisClient = redis.createClient({db: 1});
 
 const getJob = () => {
   return new Promise((resolve, reject) => {
-    http.get(getServerOptions(), (res) => {
-      let data = '';
-      res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => {
-        if (JSON.parse(data).id) {
-          return resolve(data);
-        }
-        return reject('No job found');
-      });
+    redisClient.brpop('ipQueue', 1, (err, res) => {
+      if (res) {
+        return resolve(res[1]);
+      }
+      return reject('no job');
     });
   });
 };
 
 const loop = () => {
   getJob()
-    .then((data) => {
-      const params = JSON.parse(data);
+    .then((id) => {
       imageSets
-        .get(redisClient, params.id)
+        .get(redisClient, id)
         .then(processImage)
         .then((tags) => {
-          imageSets.completedProcessing(redisClient, params.id, tags);
+          imageSets.completedProcessing(redisClient, id, tags);
         })
-        .then(() => console.log('Finished job', params.id))
-        .then(() => loop());
+        .then(() => console.log('Finished job', id))
+        .then(loop);
     })
-    .catch(() => {
-      setTimeout(loop, 2000);
-    });
+    .catch(loop);
 };
 
 loop();
