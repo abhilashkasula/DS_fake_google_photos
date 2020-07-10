@@ -12,9 +12,10 @@ app.use((req, res, next) => {
 
 app.post('/process/:name/:count/:width/:height/:tags', (req, res) => {
   imageSets.addImageSet(redisClient, req.params).then((job) => {
-    res.send(`id=${job.id}`);
-    res.end();
-    redisClient.lpush('ipQueue', job.id);
+    redisClient.lpush('ipQueue', job.id, () => {
+      res.send(`id=${job.id}`);
+      res.end();
+    });
   });
 });
 
